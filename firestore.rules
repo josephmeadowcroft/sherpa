@@ -29,7 +29,7 @@ service cloud.firestore {
     }
 
     match /internships/{internshipId} {
-      allow read, create, update: if isAuthenticated();
+      allow read, create, update, delete: if isAuthenticated();
     }
 
     match /applications/{applicationId} {

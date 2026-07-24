@@ -65,6 +65,8 @@ export interface Internship {
   location: string;
   deadline: string;
   applyUrl: string;
+  programType?: string;
+  notes?: string;
   source?: string;
   fetchedAt: string;
 }
