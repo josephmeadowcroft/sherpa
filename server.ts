@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import express from "express";
 import path from "path";
 import { execFile } from "child_process";
@@ -5,6 +6,10 @@ import fs from "fs/promises";
 import os from "os";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+
+// .env.local takes precedence for local overrides; .env fills in anything missing.
+dotenv.config({ path: ".env.local" });
+dotenv.config();
 
 const app = express();
 const PORT = 3000;
