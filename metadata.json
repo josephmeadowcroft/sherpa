@@ -1,0 +1,6 @@
+{
+  "name": "Sherpa",
+  "description": "Student career dashboard guiding students with AI career navigation, CV optimization, and real-time internship tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
