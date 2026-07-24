@@ -4,7 +4,9 @@ import { AuthScreen } from "./components/AuthScreen";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { Header } from "./components/Header";
 import { NextStepCard } from "./components/Dashboard/NextStepCard";
-import { AssistantChat } from "./components/Dashboard/AssistantChat";
+import { TrailMap } from "./components/Dashboard/TrailMap";
+import { PeerNetworkModal } from "./components/Dashboard/PeerNetworkModal";
+import { AssistantChatPanel } from "./components/Dashboard/AssistantChatPanel";
 import { ActivityFeed } from "./components/Dashboard/ActivityFeed";
 import { ScoreDial } from "./components/CvImprover/ScoreDial";
 import { CvAnalysisView } from "./components/CvImprover/CvAnalysisView";
@@ -45,6 +47,8 @@ function MainApp() {
     "dashboard",
   );
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [peerOpen, setPeerOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Firestore Data
   const [applications, setApplications] = useState<
@@ -278,7 +282,11 @@ function MainApp() {
     !userProfile?.username || userProfile.onboardingCompleted === false;
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-gray-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div
+      className={`bg-[#FAFAF8] text-gray-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900 ${
+        currentTab === "dashboard" ? "h-dvh overflow-hidden relative" : "min-h-screen"
+      }`}
+    >
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Onboarding Wizard Modal if incomplete */}
@@ -292,39 +300,48 @@ function MainApp() {
         />
       )}
 
-      {/* Top Navigation Bar */}
-      <Header currentTab={currentTab} onSelectTab={setCurrentTab} />
+      <Header
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        onOpenPeers={() => setPeerOpen(true)}
+        onOpenChat={() => setChatOpen(true)}
+        overlay={currentTab === "dashboard"}
+      />
+
+      {/* Peer Network & AI Chat overlays */}
+      <PeerNetworkModal
+        open={peerOpen}
+        onClose={() => setPeerOpen(false)}
+        onShowToast={showToast}
+      />
+      <AssistantChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        applications={applications}
+        latestCvScore={latestCvScore}
+        onNavigate={setCurrentTab}
+      />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <main
+        className={
+          currentTab === "dashboard"
+            ? "absolute inset-0 w-full"
+            : "flex-1 w-full mx-auto max-w-7xl p-4 sm:p-6 lg:p-8"
+        }
+      >
         {/* PAGE 1: OVERVIEW */}
         {currentTab === "dashboard" && (
-          <div className="space-y-6">
-            {/* Home 2-Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-              {/* Left Column (2/3 width): Sherpa AI Assistant & Recommended Next Step */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Sherpa AI Assistant */}
-                <AssistantChat
-                  applications={applications}
-                  latestCvScore={latestCvScore}
-                  onNavigate={setCurrentTab}
-                />
-
-                {/* Recommended Next Step */}
-                <NextStepCard
-                  applications={applications}
-                  latestCvScore={latestCvScore}
-                  onNavigate={setCurrentTab}
-                />
-              </div>
-
-              {/* Right Column (1/3 width): Peer Network */}
-              <div className="lg:col-span-1">
-                <ActivityFeed onShowToast={showToast} />
-              </div>
-            </div>
-          </div>
+          <TrailMap
+            nextStep={
+              <NextStepCard
+                applications={applications}
+                latestCvScore={latestCvScore}
+                onNavigate={setCurrentTab}
+              />
+            }
+            activityFeed={<ActivityFeed onShowToast={showToast} feedOnly />}
+          />
         )}
 
         {/* PAGE 2: CV OPTIMIZER */}
