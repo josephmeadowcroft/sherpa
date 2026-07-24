@@ -3,6 +3,7 @@ import { Send, Loader2, RefreshCw, FileText, Briefcase, ArrowRight } from 'lucid
 import { useAuth } from '../../context/AuthContext';
 import { ChatMessage, ApplicationRecord } from '../../types';
 import { SherpaMascot } from '../SherpaMascot';
+import { MarkdownMessage } from './MarkdownMessage';
 
 interface AssistantChatProps {
   applications: Record<string, ApplicationRecord>;
@@ -135,7 +136,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                     : 'bg-white text-gray-800 rounded-tl-xs border border-gray-200/80 shadow-2xs'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                <MarkdownMessage text={msg.text} isUser={isUser} />
                 <span
                   className={`block text-[10px] mt-1.5 text-right ${
                     isUser ? 'text-blue-100/80' : 'text-gray-400'
