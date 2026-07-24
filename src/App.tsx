@@ -165,16 +165,17 @@ function MainApp() {
         const latexSource = await file.text();
         await runAnalysis({ latexSource, userId: currentUser.uid });
       } else {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-          const base64Data = reader.result as string;
-          await runAnalysis({
-            fileData: base64Data,
-            mimeType: file.type || "application/pdf",
-            userId: currentUser.uid,
-          });
-        };
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read the selected file."));
+          reader.readAsDataURL(file);
+        });
+        await runAnalysis({
+          fileData: base64Data,
+          mimeType: file.type || "application/pdf",
+          userId: currentUser.uid,
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -264,7 +265,12 @@ function MainApp() {
 
   // Auth Protection
   if (!currentUser) {
-    return <AuthScreen onShowToast={showToast} />;
+    return (
+      <>
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <AuthScreen onShowToast={showToast} />
+      </>
+    );
   }
 
   // Onboarding Protection

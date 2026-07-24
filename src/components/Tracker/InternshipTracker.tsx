@@ -346,31 +346,36 @@ export const InternshipTracker: React.FC<InternshipTrackerProps> = ({
       updatedAt: now,
     };
 
-    await setDoc(doc(db, "applications", appId), appData);
+    try {
+      await setDoc(doc(db, "applications", appId), appData);
 
-    if (newStatus === "Applied" || newStatus === "Offer") {
-      const actId = `act_${Date.now()}`;
-      const activityText =
-        newStatus === "Applied"
-          ? `applied to ${internship.company} — ${internship.role}`
-          : `received an Offer from ${internship.company}! 🎉`;
+      if (newStatus === "Applied" || newStatus === "Offer") {
+        const actId = `act_${Date.now()}`;
+        const activityText =
+          newStatus === "Applied"
+            ? `applied to ${internship.company} — ${internship.role}`
+            : `received an Offer from ${internship.company}! 🎉`;
 
-      await setDoc(doc(db, "activities", actId), {
-        userId: currentUser.uid,
-        username: userProfile?.username || "student",
-        userDisplayName: userProfile?.displayName || "Student",
-        userPhotoURL: userProfile?.photoURL || "",
-        type: newStatus === "Offer" ? "offer" : "applied",
-        text: activityText,
-        createdAt: now,
-      });
+        await setDoc(doc(db, "activities", actId), {
+          userId: currentUser.uid,
+          username: userProfile?.username || "student",
+          userDisplayName: userProfile?.displayName || "Student",
+          userPhotoURL: userProfile?.photoURL || "",
+          type: newStatus === "Offer" ? "offer" : "applied",
+          text: activityText,
+          createdAt: now,
+        });
 
-      onShowToast(
-        "success",
-        `Status updated: ${newStatus}! Shared with peer feed.`,
-      );
-    } else {
-      onShowToast("info", `Status set to ${newStatus}`);
+        onShowToast(
+          "success",
+          `Status updated: ${newStatus}! Shared with peer feed.`,
+        );
+      } else {
+        onShowToast("info", `Status set to ${newStatus}`);
+      }
+    } catch (err) {
+      console.error(err);
+      onShowToast("error", "Failed to update status. Please try again.");
     }
   };
 

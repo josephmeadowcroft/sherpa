@@ -13,11 +13,16 @@ export const CvAnalysisView: React.FC<CvAnalysisViewProps> = ({ tips, improvedSe
   const [expandedTipIndex, setExpandedTipIndex] = useState<number | null>(0);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  const handleCopy = (text: string, idx: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(idx);
-    onShowToast('success', 'Copied rewritten bullet point to clipboard!');
-    setTimeout(() => setCopiedIndex(null), 2000);
+  const handleCopy = async (text: string, idx: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(idx);
+      onShowToast('success', 'Copied rewritten bullet point to clipboard!');
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error(err);
+      onShowToast('error', 'Failed to copy to clipboard.');
+    }
   };
 
   const severityBadge = (sev: 'high' | 'medium' | 'low') => {
