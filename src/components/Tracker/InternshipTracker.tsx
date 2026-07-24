@@ -475,7 +475,7 @@ export const InternshipTracker: React.FC<InternshipTrackerProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full md:w-auto justify-start md:justify-end">
             <button
               onClick={() => setShowMyAppsOnly(!showMyAppsOnly)}
               className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 border ${
@@ -499,9 +499,9 @@ export const InternshipTracker: React.FC<InternshipTrackerProps> = ({
         </div>
 
         {/* Industry and Program Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-100 pt-3">
+        <div className="flex flex-col items-start justify-between gap-3 border-t border-gray-100 pt-3">
           {/* Industry Category Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
             <span className="text-[11px] font-semibold text-gray-400 shrink-0 mr-1">
               Industry:
             </span>
@@ -521,7 +521,7 @@ export const InternshipTracker: React.FC<InternshipTrackerProps> = ({
           </div>
 
           {/* Program Type Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
             <span className="text-[11px] font-semibold text-gray-400 shrink-0 mr-1">
               Type:
             </span>
