@@ -9,12 +9,14 @@ interface AssistantChatProps {
   applications: Record<string, ApplicationRecord>;
   latestCvScore: number | null;
   onNavigate: (tab: 'dashboard' | 'cv' | 'tracker') => void;
+  variant?: 'card' | 'panel';
 }
 
 export const AssistantChat: React.FC<AssistantChatProps> = ({
   applications,
   latestCvScore,
   onNavigate,
+  variant = 'card',
 }) => {
   const { userProfile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -65,7 +67,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to fetch assistant response');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || 'Failed to fetch assistant response');
+      }
 
       const data = await res.json();
       const botMsg: ChatMessage = {
@@ -76,14 +81,17 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       };
 
       setMessages((prev) => [...prev, botMsg]);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setMessages((prev) => [
         ...prev,
         {
           id: `msg_err_${Date.now()}`,
           sender: 'assistant',
-          text: 'Sorry, I ran into an error connecting to Sherpa AI. Please check your network connection and try again.',
+          text:
+            err?.message && !err.message.includes('fetch')
+              ? err.message
+              : 'Sorry, I ran into an error connecting to Sherpa AI. Please check your network connection and try again.',
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -92,10 +100,18 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   };
 
+  const isPanel = variant === 'panel';
+
   return (
-    <div className="w-full bg-white border border-gray-200/80 rounded-2xl flex flex-col h-[520px] shadow-sm hover:shadow transition-shadow overflow-hidden">
+    <div
+      className={`w-full bg-white flex flex-col overflow-hidden ${
+        isPanel
+          ? 'h-full border-0 rounded-none shadow-none'
+          : 'border border-gray-200/80 rounded-2xl h-[520px] shadow-sm hover:shadow transition-shadow'
+      }`}
+    >
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <SherpaMascot size="sm" isThinking={loading} />
           <div>
@@ -108,7 +124,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${isPanel ? 'pr-10' : ''}`}>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Active
@@ -117,7 +133,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FAFAF8]">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-[#FAFAF8]">
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
           return (

@@ -23,8 +23,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete, on
   const [university, setUniversity] = useState<string>(userProfile?.university || 'University of London');
   const [gradYear, setGradYear] = useState<string>(userProfile?.gradYear || '2026');
   const [targetRoles, setTargetRoles] = useState<string>(userProfile?.targetRoles?.join(', ') || 'Software Engineering, Product Management');
+  const [savingStep2, setSavingStep2] = useState<boolean>(false);
 
   const [uploadingCv, setUploadingCv] = useState<boolean>(false);
+  const [skippingCv, setSkippingCv] = useState<boolean>(false);
 
   const handleUsernameChange = async (val: string) => {
     const clean = val.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -68,78 +70,95 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete, on
       .map((r) => r.trim())
       .filter(Boolean);
 
-    await updateUserProfile({
-      course,
-      university,
-      gradYear,
-      targetRoles: rolesArray.length > 0 ? rolesArray : ['Software Engineering']
-    });
-    setStep(3);
+    setSavingStep2(true);
+    try {
+      await updateUserProfile({
+        course,
+        university,
+        gradYear,
+        targetRoles: rolesArray.length > 0 ? rolesArray : ['Software Engineering']
+      });
+      setStep(3);
+    } catch (err: any) {
+      console.error(err);
+      onShowToast('error', err.message || 'Failed to save your profile. Please try again.');
+    } finally {
+      setSavingStep2(false);
+    }
   };
 
   const handleCvUploadAndAnalyze = async (file: File) => {
     if (!currentUser) return;
     setUploadingCv(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read the selected file.'));
+        reader.readAsDataURL(file);
+      });
 
-        const res = await fetch('/api/analyze-cv', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileData: base64Data,
-            mimeType: file.type || 'application/pdf',
-            userId: currentUser.uid
-          })
-        });
+      const res = await fetch('/api/analyze-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: base64Data,
+          mimeType: file.type || 'application/pdf',
+          userId: currentUser.uid
+        })
+      });
 
-        if (!res.ok) {
-          throw new Error('Failed to analyze CV.');
-        }
+      if (!res.ok) {
+        throw new Error('Failed to analyze CV.');
+      }
 
-        const analysis = await res.json();
+      const analysis = await res.json();
 
-        const analysisId = `cv_${Date.now()}`;
-        await setDoc(doc(db, 'cvAnalyses', analysisId), {
-          ...analysis,
-          userId: currentUser.uid,
-          createdAt: new Date().toISOString()
-        });
+      const analysisId = `cv_${Date.now()}`;
+      await setDoc(doc(db, 'cvAnalyses', analysisId), {
+        ...analysis,
+        userId: currentUser.uid,
+        createdAt: new Date().toISOString()
+      });
 
-        await updateUserProfile({
-          cvText: analysis.extractedText || '',
-          cvFileName: file.name,
-          cvUpdatedAt: new Date().toISOString(),
-          onboardingCompleted: true
-        });
+      await updateUserProfile({
+        cvText: analysis.extractedText || '',
+        cvFileName: file.name,
+        cvUpdatedAt: new Date().toISOString(),
+        onboardingCompleted: true
+      });
 
-        const actId = `act_${Date.now()}`;
-        await setDoc(doc(db, 'activities', actId), {
-          userId: currentUser.uid,
-          username: username || userProfile?.username || 'student',
-          userDisplayName: userProfile?.displayName || username,
-          type: 'cv_improved',
-          text: `improved their CV score to ${analysis.overallScore}/100`,
-          createdAt: new Date().toISOString()
-        });
+      const actId = `act_${Date.now()}`;
+      await setDoc(doc(db, 'activities', actId), {
+        userId: currentUser.uid,
+        username: username || userProfile?.username || 'student',
+        userDisplayName: userProfile?.displayName || username,
+        type: 'cv_improved',
+        text: `improved their CV score to ${analysis.overallScore}/100`,
+        createdAt: new Date().toISOString()
+      });
 
-        onShowToast('success', `CV Analyzed! Initial score: ${analysis.overallScore}/100`);
-        setUploadingCv(false);
-        onComplete();
-      };
+      onShowToast('success', `CV Analyzed! Initial score: ${analysis.overallScore}/100`);
+      onComplete();
     } catch (err: any) {
       console.error(err);
-      onShowToast('error', err.message || 'CV Analysis failed.');
+      onShowToast('error', err.message || 'CV Analysis failed. Please try again.');
+    } finally {
       setUploadingCv(false);
     }
   };
 
   const handleSkipCv = async () => {
-    await updateUserProfile({ onboardingCompleted: true });
-    onComplete();
+    setSkippingCv(true);
+    try {
+      await updateUserProfile({ onboardingCompleted: true });
+      onComplete();
+    } catch (err: any) {
+      console.error(err);
+      onShowToast('error', err.message || 'Failed to save. Please try again.');
+    } finally {
+      setSkippingCv(false);
+    }
   };
 
   return (
@@ -288,9 +307,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete, on
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-2xs"
+              disabled={savingStep2}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-2xs"
             >
-              Continue to Resume Analysis <ArrowRight className="w-4 h-4" />
+              {savingStep2 ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  Continue to Resume Analysis <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
         )}
@@ -346,10 +372,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete, on
               <button
                 type="button"
                 onClick={handleSkipCv}
-                disabled={uploadingCv}
-                className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+                disabled={uploadingCv || skippingCv}
+                className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50"
               >
-                I'll do this later
+                {skippingCv ? 'Saving...' : "I'll do this later"}
               </button>
               <div className="flex items-center gap-1.5 text-xs text-blue-600 font-medium">
                 <Sparkles className="w-3.5 h-3.5" /> Powered by Gemini AI

@@ -7,6 +7,24 @@ interface AuthScreenProps {
   onShowToast: (type: 'success' | 'error' | 'info', text: string) => void;
 }
 
+const FRIENDLY_AUTH_ERRORS: Record<string, string> = {
+  'auth/invalid-credential': 'Incorrect email or password. Please try again.',
+  'auth/wrong-password': 'Incorrect email or password. Please try again.',
+  'auth/user-not-found': 'No account found with that email. Try signing up instead.',
+  'auth/invalid-email': 'That email address looks invalid. Please check and try again.',
+  'auth/email-already-in-use': 'An account with that email already exists. Try signing in instead.',
+  'auth/weak-password': 'Password is too weak. Use at least 6 characters.',
+  'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+  'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
+  'auth/network-request-failed': 'Network error. Please check your connection and try again.',
+};
+
+const friendlyAuthError = (err: any, fallback: string): string => {
+  const code = err?.code as string | undefined;
+  if (code && FRIENDLY_AUTH_ERRORS[code]) return FRIENDLY_AUTH_ERRORS[code];
+  return fallback;
+};
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onShowToast }) => {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -28,7 +46,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onShowToast }) => {
       }
     } catch (err: any) {
       console.error(err);
-      onShowToast('error', err.message || 'Authentication failed.');
+      onShowToast('error', friendlyAuthError(err, 'Authentication failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -41,7 +59,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onShowToast }) => {
       onShowToast('success', 'Successfully signed in with Google!');
     } catch (err: any) {
       console.error(err);
-      onShowToast('error', err.message || 'Google sign-in failed.');
+      onShowToast('error', friendlyAuthError(err, 'Google sign-in failed. Please try again.'));
     } finally {
       setLoading(false);
     }
