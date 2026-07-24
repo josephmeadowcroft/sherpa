@@ -8,6 +8,7 @@ import { AssistantChat } from "./components/Dashboard/AssistantChat";
 import { ActivityFeed } from "./components/Dashboard/ActivityFeed";
 import { ScoreDial } from "./components/CvImprover/ScoreDial";
 import { CvAnalysisView } from "./components/CvImprover/CvAnalysisView";
+import { CvGenerateResult } from "./components/CvImprover/CvGenerateResult";
 import { InternshipTracker } from "./components/Tracker/InternshipTracker";
 import { ToastContainer, ToastMessage } from "./components/Toast";
 import {
@@ -17,6 +18,7 @@ import {
   Loader2,
   Sparkles,
   Compass,
+  Wand2,
 } from "lucide-react";
 import {
   collection,
@@ -28,7 +30,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./lib/firebase";
-import { ApplicationRecord, CvAnalysis } from "./types";
+import { ApplicationRecord, CvAnalysis, GeneratedCv } from "./types";
 
 function MainApp() {
   const {
@@ -50,6 +52,8 @@ function MainApp() {
   >({});
   const [cvAnalyses, setCvAnalyses] = useState<CvAnalysis[]>([]);
   const [analyzingCv, setAnalyzingCv] = useState<boolean>(false);
+  const [generatingCv, setGeneratingCv] = useState<boolean>(false);
+  const [generatedCv, setGeneratedCv] = useState<GeneratedCv | null>(null);
 
   const showToast = (type: "success" | "error" | "info", text: string) => {
     const id = `toast_${Date.now()}`;
@@ -103,20 +107,15 @@ function MainApp() {
   const handleUploadCv = async (file: File) => {
     if (!currentUser) return;
     setAnalyzingCv(true);
+    setGeneratedCv(null);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
+      const isLatex = file.name.toLowerCase().endsWith(".tex");
 
+      const runAnalysis = async (body: Record<string, any>) => {
         const res = await fetch("/api/analyze-cv", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileData: base64Data,
-            mimeType: file.type || "application/pdf",
-            userId: currentUser.uid,
-          }),
+          body: JSON.stringify(body),
         });
 
         if (!res.ok) throw new Error("Analysis failed.");
@@ -161,10 +160,58 @@ function MainApp() {
         );
         setAnalyzingCv(false);
       };
+
+      if (isLatex) {
+        const latexSource = await file.text();
+        await runAnalysis({ latexSource, userId: currentUser.uid });
+      } else {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+          const base64Data = reader.result as string;
+          await runAnalysis({
+            fileData: base64Data,
+            mimeType: file.type || "application/pdf",
+            userId: currentUser.uid,
+          });
+        };
+      }
     } catch (err: any) {
       console.error(err);
       showToast("error", err.message || "Failed to analyze CV");
       setAnalyzingCv(false);
+    }
+  };
+
+  // Handle "Generate Updated CV" (Jake's Resume Template, LaTeX + compiled PDF)
+  const handleGenerateCv = async () => {
+    if (!currentUser) return;
+    setGeneratingCv(true);
+    try {
+      const res = await fetch("/api/generate-cv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cvText: userProfile?.cvText,
+          analysis: latestCvAnalysis,
+          userId: currentUser.uid,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok)
+        throw new Error(result.error || "Failed to generate updated CV.");
+
+      setGeneratedCv(result);
+      showToast(
+        "success",
+        "Updated CV generated! Download your PDF or LaTeX source below.",
+      );
+    } catch (err: any) {
+      console.error(err);
+      showToast("error", err.message || "Failed to generate updated CV.");
+    } finally {
+      setGeneratingCv(false);
     }
   };
 
@@ -302,10 +349,21 @@ function MainApp() {
                     <span>Re-analyze</span>
                   </button>
 
+                  {latestCvAnalysis && (
+                    <button
+                      onClick={handleGenerateCv}
+                      disabled={generatingCv}
+                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors flex items-center gap-2 border border-gray-200 shadow-2xs"
+                    >
+                      <Wand2 className={`w-3.5 h-3.5 ${generatingCv ? "animate-spin text-blue-600" : ""}`} />
+                      <span>{generatingCv ? "Generating..." : "Generate Updated CV"}</span>
+                    </button>
+                  )}
+
                   <label className="cursor-pointer px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-all shadow-2xs flex items-center gap-2">
                     <input
                       type="file"
-                      accept="application/pdf,.doc,.docx"
+                      accept="application/pdf,.doc,.docx,.tex"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -313,7 +371,7 @@ function MainApp() {
                       }}
                     />
                     <Upload className="w-3.5 h-3.5" />
-                    <span>Replace CV PDF</span>
+                    <span>Replace CV</span>
                   </label>
                 </div>
               )}
@@ -339,7 +397,7 @@ function MainApp() {
                 <label className="cursor-pointer block space-y-4">
                   <input
                     type="file"
-                    accept="application/pdf,.doc,.docx"
+                    accept="application/pdf,.doc,.docx,.tex"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -378,6 +436,13 @@ function MainApp() {
                   improvedSections={latestCvAnalysis.improvedSections || []}
                   onShowToast={showToast}
                 />
+
+                {generatedCv && (
+                  <CvGenerateResult
+                    generatedCv={generatedCv}
+                    fileNameBase={`${userProfile?.username || "sherpa"}-updated-cv`}
+                  />
+                )}
               </div>
             )}
           </div>

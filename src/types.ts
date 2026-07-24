@@ -50,6 +50,11 @@ export interface CvAnalysis {
   createdAt: string;
 }
 
+export interface GeneratedCv {
+  texSource: string;
+  pdfBase64: string;
+}
+
 export interface NextStepRecommendation {
   nextStep: string;
   reason: string;
